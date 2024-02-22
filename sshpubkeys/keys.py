@@ -86,8 +86,22 @@ class AuthorizedKeysFile:  # pylint:disable=too-few-public-methods
 
     Comments and empty lines are ignored."""
 
-    def __init__(self, file_obj, **kwargs):
+    def __init__(self, file_obj, ignore_errors: bool=False, **kwargs):
+        """Parse the given authorized keys file into a list of `SSHKey`s.
+
+        Parameters
+        ----------
+        file_obj : file-like object
+            An open file-like object.
+        ignore_errors : bool, optional
+            If True then ignore lines in file that throw `InvalidTypeError` or
+            `MalformedDataError`. These are assigned as `None` rather than an
+            `SSHKey` in the list `self.keys`. If False, then propagate those
+            Exceptions, effectively stopping parsing of the file upon the first
+            faulty line. By default False.
+        """
         self.keys = []
+        self.ignore_errors = ignore_errors
         self.parse(file_obj, **kwargs)
 
     def parse(self, file_obj, **kwargs):
@@ -97,9 +111,16 @@ class AuthorizedKeysFile:  # pylint:disable=too-few-public-methods
                 continue
             if line.startswith("#"):
                 continue
-            ssh_key = SSHKey(line, **kwargs)
-            ssh_key.parse()
-            self.keys.append(ssh_key)
+            try:
+                ssh_key = SSHKey(line, **kwargs)
+                ssh_key.parse()
+                self.keys.append(ssh_key)
+            except (InvalidTypeError, MalformedDataError) as e:
+                if not self.ignore_errors:
+                    raise e
+                
+                warnings.warn(f"Failed to parse line from AuthorizedKeysFile, appending `None` instead: '{line}'")
+                self.keys.append(None)
 
 
 class SSHKey:  # pylint:disable=too-many-instance-attributes
