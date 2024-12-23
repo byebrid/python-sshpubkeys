@@ -57,9 +57,10 @@ class _ECVerifyingKey:
     def to_string(self, encoding="raw"):
         """Pub key as bytes string"""
         if encoding == "raw":
-            return self.pubkey.public_numbers().encode_point()[1:]
+            # Omit first char because it is an unwanted '\x04'
+            return self.pubkey.public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH)[1:]
         if encoding == "uncompressed":
-            return self.pubkey.public_numbers().encode_point()
+            return self.pubkey.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         if encoding == "compressed":
             return self.pubkey.public_bytes(Encoding.X962, PublicFormat.CompressedPoint)
         raise ValueError(encoding)
